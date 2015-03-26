@@ -130,6 +130,8 @@ public class DefaultDistributionManager implements DistributionManager, Initiali
 
     private CoreExtension distributionExtension;
 
+    private boolean flavorBased = true;
+
     private ExtensionId mainUIExtensionId;
 
     private ExtensionId wikiUIExtensionId;
@@ -145,7 +147,7 @@ public class DefaultDistributionManager implements DistributionManager, Initiali
         // Get the current distribution
         this.distributionExtension = this.coreExtensionRepository.getEnvironmentExtension();
 
-        // Determine distribution status
+        // Extract various configuration from the distribution extension
         if (this.distributionExtension != null) {
             // Distribution UI
             String mainUIId = (String) this.distributionExtension.getProperty("xwiki.extension.distribution.ui");
