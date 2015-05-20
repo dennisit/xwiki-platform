@@ -22,11 +22,9 @@ package org.xwiki.mail.internal.factory.group;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Properties;
 
 import javax.inject.Provider;
 import javax.mail.MessagingException;
-import javax.mail.Session;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -35,7 +33,8 @@ import org.xwiki.component.util.DefaultParameterizedType;
 import org.xwiki.model.reference.DocumentReference;
 import org.xwiki.test.mockito.MockitoComponentMockingRule;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 import static org.mockito.Mockito.when;
 
 /**
@@ -44,6 +43,7 @@ import static org.mockito.Mockito.when;
  * @version $Id$
  * @since 6.4.1
  */
+@Deprecated
 public class GroupMimeMessageFactoryTest
 {
     @Rule
@@ -53,11 +53,10 @@ public class GroupMimeMessageFactoryTest
     @Test
     public void createMessageWhenNullParametersPassed() throws Exception
     {
-        Session session = Session.getInstance(new Properties());
         DocumentReference groupReference = new DocumentReference("wiki", "space", "page");
 
         try {
-            this.mocker.getComponentUnderTest().createMessage(session, groupReference, null);
+            this.mocker.getComponentUnderTest().createMessage(groupReference, null);
             fail("Should have thrown an exception");
         } catch (MessagingException expected) {
             assertEquals("You must pass parameters for this Mime Message Factory to work!", expected.getMessage());
@@ -67,12 +66,10 @@ public class GroupMimeMessageFactoryTest
     @Test
     public void createMessageWhenNoHintParameterPassed() throws Exception
     {
-        Session session = Session.getInstance(new Properties());
         DocumentReference groupReference = new DocumentReference("wiki", "space", "page");
 
         try {
-            this.mocker.getComponentUnderTest().createMessage(session, groupReference,
-                Collections.<String, Object>emptyMap());
+            this.mocker.getComponentUnderTest().createMessage(groupReference, Collections.<String, Object>emptyMap());
             fail("Should have thrown an exception");
         } catch (MessagingException expected) {
             assertEquals("The parameter [hint] is mandatory.", expected.getMessage());
@@ -82,11 +79,10 @@ public class GroupMimeMessageFactoryTest
     @Test
     public void createMessageWhenNoSourceParameterPassed() throws Exception
     {
-        Session session = Session.getInstance(new Properties());
         DocumentReference groupReference = new DocumentReference("wiki", "space", "page");
 
         try {
-            this.mocker.getComponentUnderTest().createMessage(session, groupReference,
+            this.mocker.getComponentUnderTest().createMessage(groupReference,
                 Collections.<String, Object>singletonMap("hint", "factoryHint"));
             fail("Should have thrown an exception");
         } catch (MessagingException expected) {
@@ -97,21 +93,20 @@ public class GroupMimeMessageFactoryTest
     @Test
     public void createMessageWhenNotExistingMimeMessageFactory() throws Exception
     {
-        Session session = Session.getInstance(new Properties());
         DocumentReference groupReference = new DocumentReference("wiki", "space", "page");
         Map<String, Object> parameters = new HashMap<>();
         parameters.put("hint", "factoryHint");
-        parameters.put("source", "factoryHint");
+        parameters.put("source", "factorySource");
 
         Provider<ComponentManager> componentManagerProvider = this.mocker.registerMockComponent(
             new DefaultParameterizedType(null, Provider.class, ComponentManager.class), "context");
         when(componentManagerProvider.get()).thenReturn(this.mocker);
 
         try {
-            this.mocker.getComponentUnderTest().createMessage(session, groupReference, parameters);
+            this.mocker.getComponentUnderTest().createMessage(groupReference, parameters);
             fail("Should have thrown an exception");
         } catch (MessagingException expected) {
-            assertEquals("Failed to find a [MimeMessageFactory<String, MimeMessage>] for hint [factoryHint]",
+            assertEquals("Failed to find a [MimeMessageFactory<MimeMessage>] for hint [factoryHint]",
                 expected.getMessage());
         }
     }

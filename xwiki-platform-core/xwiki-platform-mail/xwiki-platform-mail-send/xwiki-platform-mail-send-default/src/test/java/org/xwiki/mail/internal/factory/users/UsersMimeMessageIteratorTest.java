@@ -52,6 +52,7 @@ import static org.mockito.Mockito.when;
  * @version $Id$
  * @since 6.4M3
  */
+@Deprecated
 public class UsersMimeMessageIteratorTest
 {
     @Test
@@ -66,10 +67,10 @@ public class UsersMimeMessageIteratorTest
 
         MimeMessageFactory factory = new MimeMessageFactory()
         {
-            @Override public MimeMessage createMessage(Session session, Object source, Map parameters)
+            @Override public MimeMessage createMessage(Object source, Map parameters)
                 throws MessagingException
             {
-                return new MimeMessage(session);
+                return new MimeMessage((Session) null);
             }
         };
 

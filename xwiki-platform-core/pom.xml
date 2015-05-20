@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.xwiki.platform</groupId>
     <artifactId>xwiki-platform</artifactId>
-    <version>7.0-SNAPSHOT</version>
+    <version>7.1-SNAPSHOT</version>
   </parent>
   <artifactId>xwiki-platform-core</artifactId>
   <name>XWiki Platform - Core - Parent POM</name>
@@ -40,7 +40,7 @@
     <!-- Follow the specifications regarding the WebJar content path. -->
     <webjar.contentDirectory>${project.build.outputDirectory}/META-INF/resources/webjars/${project.artifactId}/${project.version}</webjar.contentDirectory>
     <!-- The bootstrap version is used is several places -->
-    <bootstrap.version>3.3.2</bootstrap.version>
+    <bootstrap.version>3.3.4</bootstrap.version>
   </properties>
   <dependencies>
     <!-- Adds an Annotation Processor to automatically verify Component declarations.
@@ -68,46 +68,57 @@
       <dependency>
         <groupId>org.python</groupId>
         <artifactId>jython-standalone</artifactId>
-        <version>2.7-b4-xwiki-1</version>
+        <version>2.7.0-xwiki</version>
       </dependency>
       <!-- Used on remote observation and also by JBossCache/Infinispan (even if it does not really use it) -->
       <dependency>
         <groupId>org.jgroups</groupId>
         <artifactId>jgroups</artifactId>
-        <version>3.6.2.Final</version>
+        <version>3.6.3.Final</version>
       </dependency>
-      <!-- Apache Tika used by Lucene and Office modules -->
+      <!-- Apache Tika used by several modules (Lucene, Office, etc) -->
       <dependency>
         <groupId>org.apache.tika</groupId>
         <artifactId>tika-core</artifactId>
-        <version>1.7</version>
+        <version>1.8</version>
       </dependency>
       <dependency>
         <groupId>org.apache.tika</groupId>
         <artifactId>tika-parsers</artifactId>
-        <version>1.7</version>
+        <version>1.8</version>
         <exclusions>
           <!-- We want to choose the SLF4J binding only when XWiki is packaged. -->
           <exclusion>
             <groupId>commons-logging</groupId>
             <artifactId>commons-logging</artifactId>
           </exclusion>
-          <!-- Tika Parsers 1.3 depends on bcprov-jdk15 1.45 but some XWiki extensions (such as the CRaSH integration)
-               require bcprov-jdk16, thus we exclude it and add a dependency on it just after to the latest version -->
           <exclusion>
-            <groupId>org.bouncycastle</groupId>
-            <artifactId>bcprov-jdk15</artifactId>
+            <groupId>commons-logging</groupId>
+            <artifactId>commons-logging-api</artifactId>
           </exclusion>
-          <!-- Tika Parsers 1.3 depends on bcmail-jdk15 1.45 but some XWiki extensions (such as the CRaSH integration)
-               require bcmail-jdk16, thus we exclude it and add a dependency on it just after to the latest version -->
+          <!-- Exclude so that we control our own version of it. Note that Tika uses it for reading encrypted PDFs  -->
           <exclusion>
             <groupId>org.bouncycastle</groupId>
-            <artifactId>bcmail-jdk15</artifactId>
+            <artifactId>bcprov-jdk15on</artifactId>
+          </exclusion>
+          <!-- Exclude so that we control our own version of it. Note that Tika uses it for reading encrypted PDFs  -->
+          <exclusion>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcmail-jdk15on</artifactId>
           </exclusion>
           <!-- Tika triggers the wrong asm artifact so we have to take care of that ourself -->
           <exclusion>
             <artifactId>asm-debug-all</artifactId>
             <groupId>org.ow2.asm</groupId>
+          </exclusion>
+          <!-- Tika depends on junrar for handling RAR files and junrar itself depends on Commons VFS2 which depends on
+               org.apache.maven.scm:maven-scm-provider-svnexe:jar:1.4. AFAIK we shouldn't require this dependency and
+               we can safely exclude it. The other reason for excluding it is that it itself depends on
+               regexp:regexp:jar:1.3 and this causes some duplicate class conflicts with Xalan, and we already depend
+               on jakarta-regexp:jakarta-regexp. -->
+          <exclusion>
+            <artifactId>regexp</artifactId>
+            <groupId>regexp</groupId>
           </exclusion>
         </exclusions>
       </dependency>
@@ -441,31 +452,87 @@
           <ignored>
             <!-- Remove the following ignores after we release the current version as final -->
             <difference>
-              <differenceType>7006</differenceType>
-              <className>com/xpn/xwiki/web/DeleteVersionsForm</className>
-              <method>org.suigeneris.jrcs.rcs.Version getRev()</method>
-              <to>java.lang.String</to>
-              <justification>Using String instead of jrcs Version for better flexibility. Probably should not have been public from the start.</justification>
+              <differenceType>7012</differenceType>
+              <className>org/xwiki/skin/Skin</className>
+              <method>org.xwiki.rendering.syntax.Syntax getOutputSyntax()</method>
+              <justification>Add a new method to this young API</justification>
+            </difference>
+            <difference>
+              <differenceType>7002</differenceType>
+              <className>com/xpn/xwiki/XWiki</className>
+              <method>com.xpn.xwiki.render.XWikiRenderingEngine getRenderingEngine()</method>
+              <justification>Not really been removed but now return Object. Breaks code building that use this method but should be ok for runtime.</justification>
+            </difference>
+            <difference>
+              <differenceType>7002</differenceType>
+              <className>com/xpn/xwiki/XWiki</className>
+              <method>void setRenderingEngine(com.xpn.xwiki.render.XWikiRenderingEngine)</method>
+              <justification>Not used since a long time now (XWikiRenderingEngine is a component) and impossible to implement it without a trigerring most of the old rendering engine.</justification>
+            </difference>
+            <difference>
+              <differenceType>7004</differenceType>
+              <className>org/xwiki/url/ExtendedURL</className>
+              <method>ExtendedURL(java.net.URL)</method>
+              <justification>Young API. Added handling of URL parameters</justification>
+            </difference>
+            <difference>
+              <differenceType>8001</differenceType>
+              <className>com/xpn/xwiki/plugin/scheduler/StatusListener</className>
+              <justification>Never supposed to be an API</justification>
+            </difference>
+            <difference>
+              <differenceType>7004</differenceType>
+              <className>org/xwiki/mail/MimeMessageFactory</className>
+              <method>java.lang.Object createMessage(javax.mail.Session, java.lang.Object, java.util.Map)</method>
+              <justification>Young API. Remove useless Session argument since the MimeMessage will be given a valid Session when it's deserialized from the mail content store for sending.</justification>
+            </difference>
+            <difference>
+              <differenceType>7004</differenceType>
+              <className>org/xwiki/mail/MailStatusStore</className>
+              <method>java.util.List load(java.util.Map, int, int)</method>
+              <justification>Young API. Allow load a single message status and added sorting capabilities for multiple statuses.</justification>
             </difference>
             <difference>
               <differenceType>7006</differenceType>
-              <className>com/xpn/xwiki/web/DeleteVersionsForm</className>
-              <method>org.suigeneris.jrcs.rcs.Version getRev1()</method>
-              <to>java.lang.String</to>
-              <justification>Using String instead of Version for better flexibility. Probably should not have been public from the start.</justification>
+              <className>org/xwiki/mail/MailStatusStore</className>
+              <method>java.util.List load(java.util.Map, int, int)</method>
+              <to>org.xwiki.mail.MailStatus</to>
+              <justification>Young API. Allow load a single message status and added sorting capabilities for multiple statuses.</justification>
             </difference>
             <difference>
-              <differenceType>7006</differenceType>
-              <className>com/xpn/xwiki/web/DeleteVersionsForm</className>
-              <method>org.suigeneris.jrcs.rcs.Version getRev2()</method>
-              <to>java.lang.String</to>
-              <justification>Using String instead of Version for better flexibility. Probably should not have been public from the start.</justification>
+              <differenceType>7012</differenceType>
+              <className>org/xwiki/mail/MailStatusStore</className>
+              <method>java.util.List load(java.util.Map, int, int, java.lang.String, boolean)</method>
+              <justification>Young API. Allow load a single message status and added sorting capabilities for multiple statuses.</justification>
             </difference>
           </ignored>
           <excludes>
             <exclude>**/internal/**</exclude>
             <exclude>**/test/**</exclude>
             <!-- Remove the following excludes after we release the current version as final -->
+            <!-- Move xwiki/1.0 and old rendering engine to its own module -->
+            <exclude>com/xpn/xwiki/content/**</exclude>
+            <exclude>com/xpn/xwiki/render/**</exclude>
+            <exclude>com/xpn/xwiki/plugin/graphviz/GraphVizMacro</exclude>
+            <exclude>com/xpn/xwiki/plugin/svg/SVGMacro</exclude>
+            <exclude>com/xpn/xwiki/util/MenuSubstitution</exclude>
+            <exclude>com/xpn/xwiki/plugin/charts/ChartingMacro</exclude>
+            <exclude>com/xpn/xwiki/plugin/charts/CustomXWikiRenderingEngine</exclude>
+            <exclude>com/xpn/xwiki/plugin/charts/RadeoxHelper</exclude>
+            <exclude>com/xpn/xwiki/plugin/charts/source/TableDataSource</exclude>
+            <exclude>com/xpn/xwiki/plugin/charts/source/TableDataSourceFactory</exclude>
+            <exclude>com/xpn/xwiki/plugin/charts/wizard/DatasourceDefaultsHelper</exclude>
+            <!-- Young API. Large refactoring for adding the ability to register new URL Resource Types -->
+            <exclude>**/org/xwiki/resource/**</exclude>
+            <!-- Young API. Rename MimeMessageWrapper into ScriptMimeMessage (not a wrapper anymore). Velocity scripts
+                 are not affected by the change. -->
+            <exclude>**/org/xwiki/mail/script/**</exclude>
+            <!-- Young API. Change of API to fix bug in waitForProcessin(). Scripting API has not been broken, only the
+                 Java API has -->
+            <exclude>**/org/xwiki/mail/MailResult*</exclude>
+            <exclude>**/org/xwiki/mail/MailStatusResult*</exclude>
+            <!-- Young API. Class moved to the "script" package. Script service usage is unchanged. -->
+            <exclude>**/org/xwiki/mail/MailStorageScriptService*</exclude>
           </excludes>
         </configuration>
       </plugin>
@@ -510,6 +577,7 @@
     <module>xwiki-platform-feed</module>
     <module>xwiki-platform-filter</module>
     <module>xwiki-platform-flamingo</module>
+    <module>xwiki-platform-flavor</module>
     <module>xwiki-platform-formula</module>
     <module>xwiki-platform-git</module>
     <module>xwiki-platform-groovy</module>
@@ -537,6 +605,7 @@
     <module>xwiki-platform-observation</module>
     <module>xwiki-platform-office</module>
     <module>xwiki-platform-oldcore</module>
+    <module>xwiki-platform-oldrendering</module>
     <module>xwiki-platform-panels</module>
     <module>xwiki-platform-query</module>
     <module>xwiki-platform-ratings</module>
@@ -547,6 +616,7 @@
     <module>xwiki-platform-resource</module>
     <module>xwiki-platform-rest</module>
     <module>xwiki-platform-sandbox</module>
+    <module>xwiki-platform-sharepage</module>
     <module>xwiki-platform-scheduler</module>
     <module>xwiki-platform-search</module>
     <module>xwiki-platform-security</module>
@@ -570,6 +640,7 @@
     <module>xwiki-platform-wiki</module>
     <module>xwiki-platform-wysiwyg</module>
     <module>xwiki-platform-xar</module>
+    <module>xwiki-platform-xclass</module>
     <module>xwiki-platform-xml</module>
     <module>xwiki-platform-xmlrpc</module>
     <module>xwiki-platform-zipexplorer</module>

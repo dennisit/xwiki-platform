@@ -42,6 +42,7 @@ import org.xwiki.context.ExecutionContext;
 import org.xwiki.model.reference.DocumentReference;
 import org.xwiki.model.reference.DocumentReferenceResolver;
 import org.xwiki.model.reference.EntityReferenceSerializer;
+import org.xwiki.rendering.block.XDOM;
 import org.xwiki.rendering.parser.ParseException;
 import org.xwiki.rendering.syntax.Syntax;
 import org.xwiki.rendering.syntax.SyntaxFactory;
@@ -59,7 +60,6 @@ import com.xpn.xwiki.criteria.impl.RangeFactory;
 import com.xpn.xwiki.criteria.impl.RevisionCriteria;
 import com.xpn.xwiki.criteria.impl.Scope;
 import com.xpn.xwiki.criteria.impl.ScopeFactory;
-import com.xpn.xwiki.doc.AttachmentDiff;
 import com.xpn.xwiki.doc.MetaDataDiff;
 import com.xpn.xwiki.doc.XWikiAttachment;
 import com.xpn.xwiki.doc.XWikiDocument;
@@ -85,9 +85,6 @@ import com.xpn.xwiki.web.Utils;
  * {@link com.xpn.xwiki.doc.XWikiDocument} In scripting, an object representing the document in which the script resides
  * will be bound to a variable called doc.
  *
- * @version $Id$
- */
-/**
  * @version $Id$
  */
 public class Document extends Api
@@ -345,7 +342,7 @@ public class Document extends Api
      */
     public String getDisplayTitle()
     {
-        return this.doc.getRenderedTitle(Syntax.XHTML_1_0, getXWikiContext());
+        return this.doc.getRenderedTitle(getXWikiContext());
     }
 
     /**
@@ -515,6 +512,17 @@ public class Document extends Api
     public String getContent()
     {
         return this.doc.getContent();
+    }
+
+    /**
+     * NOTE: This method caches the XDOM and returns a clone that can be safely modified.
+     *
+     * @return the XDOM corresponding to the document's string content
+     * @since 7.0RC1
+     */
+    public XDOM getXDOM()
+    {
+        return this.doc.getXDOM();
     }
 
     /**
@@ -1829,15 +1837,15 @@ public class Document extends Api
                 return Collections.emptyList();
             }
             if (origdoc == null) {
-                return this.doc.getAttachmentDiff(new XWikiDocument(newdoc.getDocumentReference()), newdoc.doc,
-                    getXWikiContext());
+                return wrapAttachmentDiff(this.doc.getAttachmentDiff(new XWikiDocument(newdoc.getDocumentReference()),
+                    newdoc.doc, getXWikiContext()));
             }
             if (newdoc == null) {
-                return this.doc.getAttachmentDiff(origdoc.doc, new XWikiDocument(origdoc.getDocumentReference()),
-                    getXWikiContext());
+                return wrapAttachmentDiff(this.doc.getAttachmentDiff(origdoc.doc,
+                    new XWikiDocument(origdoc.getDocumentReference()), getXWikiContext()));
             }
 
-            return this.doc.getAttachmentDiff(origdoc.doc, newdoc.doc, getXWikiContext());
+            return wrapAttachmentDiff(this.doc.getAttachmentDiff(origdoc.doc, newdoc.doc, getXWikiContext()));
         } catch (Exception e) {
             java.lang.Object[] args =
                 { (origdoc != null) ? origdoc.getFullName() : null, (origdoc != null) ? origdoc.getVersion() : null,
@@ -1850,6 +1858,15 @@ public class Document extends Api
             list.add(errormsg);
             return list;
         }
+    }
+
+    private List<AttachmentDiff> wrapAttachmentDiff(List<com.xpn.xwiki.doc.AttachmentDiff> diffs)
+    {
+        List<AttachmentDiff> safeAttachmentDiffs = new ArrayList<>();
+        for (com.xpn.xwiki.doc.AttachmentDiff diff : diffs) {
+            safeAttachmentDiffs.add(new AttachmentDiff(diff, getXWikiContext()));
+        }
+        return safeAttachmentDiffs;
     }
 
     public List<Delta> getLastChanges() throws XWikiException, DifferentiationFailedException
@@ -2211,6 +2228,16 @@ public class Document extends Api
     }
 
     /**
+     * @param content the content as XDOM
+     * @throws XWikiException when failing to convert the XDOM to String content
+     * @since 7.0RC1
+     */
+    public void setContent(XDOM content) throws XWikiException
+    {
+        getDoc().setContent(content);
+    }
+
+    /**
      * @param syntax the Syntax representing the syntax used for the current document's content.
      * @since 2.3M1
      */
@@ -2278,7 +2305,28 @@ public class Document extends Api
     public void saveWithProgrammingRights(String comment, boolean minorEdit) throws XWikiException
     {
         if (hasProgrammingRights()) {
-            saveDocument(comment, minorEdit);
+            // The rights check above is generic, but the current method is a save operation, thus it should not be
+            // performed if the document's wiki is in read only mode.
+            XWikiContext context = getXWikiContext();
+            String currentWikiId = context.getWikiId();
+            try {
+                // Make sure we check the current document's wiki and not the current context's wiki.
+                context.setWikiId(getWiki());
+
+                if (!context.getWiki().isReadOnly()) {
+                    saveDocument(comment, minorEdit);
+                } else {
+                    java.lang.Object[] args =
+                        {getDefaultEntityReferenceSerializer().serialize(getDocumentReference()), getWiki()};
+                    throw new XWikiException(XWikiException.MODULE_XWIKI_ACCESS,
+                        XWikiException.ERROR_XWIKI_ACCESS_DENIED,
+                        "Access denied in edit mode on document [{0}]. The wiki [{1}] is in read only mode.", null,
+                        args);
+                }
+            } finally {
+                // Restore the context wiki.
+                context.setWikiId(currentWikiId);
+            }
         } else {
             java.lang.Object[] args = { this.getFullName() };
             throw new XWikiException(XWikiException.MODULE_XWIKI_ACCESS, XWikiException.ERROR_XWIKI_ACCESS_DENIED,

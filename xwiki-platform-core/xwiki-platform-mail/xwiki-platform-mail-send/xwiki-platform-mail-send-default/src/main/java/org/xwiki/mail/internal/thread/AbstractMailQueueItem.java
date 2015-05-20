@@ -40,20 +40,16 @@ public abstract class AbstractMailQueueItem implements MailQueueItem
 
     private String batchId;
 
-    private String wikiId;
-
     /**
      * @param session see {@link #getSession()}
      * @param listener see {@link #getListener()}
      * @param batchId see {@link #getBatchId()}
-     * @param wikiId see {@link #getWikiId()}
      */
-    public AbstractMailQueueItem(Session session, MailListener listener, String batchId, String wikiId)
+    public AbstractMailQueueItem(Session session, MailListener listener, String batchId)
     {
         this.session = session;
         this.listener = listener;
         this.batchId = batchId;
-        this.wikiId = wikiId;
     }
 
     @Override
@@ -78,7 +74,6 @@ public abstract class AbstractMailQueueItem implements MailQueueItem
     {
         ToStringBuilder builder = new XWikiToStringBuilder(this);
         builder.append("batchId", getBatchId());
-        builder.append("wikiId", getWikiId());
         return builder;
     }
 
@@ -86,11 +81,5 @@ public abstract class AbstractMailQueueItem implements MailQueueItem
     public String getBatchId()
     {
         return this.batchId;
-    }
-
-    @Override
-    public String getWikiId()
-    {
-        return this.wikiId;
     }
 }

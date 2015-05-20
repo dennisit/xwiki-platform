@@ -382,6 +382,12 @@ public abstract class AbstractSolrMetadataExtractor implements SolrMetadataExtra
             // removed from an XClass but there are still objects that have a (large) value set for it (the property
             // class is null in this case). The 255 limit is defined in xwiki.hbm.xml for string properties.
             setPropertyValue(solrDocument, property, new TypedValue(propertyValue, TypedValue.TEXT), locale);
+
+            if (!(propertyClass instanceof TextAreaClass) && String.valueOf(propertyValue).length() <= SHORT_TEXT_LIMIT) {
+                // Also index the raw value that is saved in the database. This provide a stable field name and also
+                // allows exact matching
+                setPropertyValue(solrDocument, property, new TypedValue(propertyValue), locale);
+            }
         } else if (propertyValue instanceof Collection) {
             // We iterate the collection instead of giving it to Solr because, although it supports passing collections,
             // it reuses the collection in some cases, when the value of a field is set for the first time for instance,
@@ -450,8 +456,28 @@ public abstract class AbstractSolrMetadataExtractor implements SolrMetadataExtra
     protected void setPropertyValue(SolrInputDocument solrDocument, BaseProperty<EntityReference> property,
         TypedValue typedValue, Locale locale)
     {
+        // Collect all the property values from all the objects of a document in a single (localized) field.
         String fieldName = FieldUtils.getFieldName(FieldUtils.OBJECT_CONTENT, locale);
-        solrDocument.addField(fieldName, String.format(OBJCONTENT_FORMAT, property.getName(), typedValue.getValue()));
+        String fieldValue = String.format(OBJCONTENT_FORMAT, property.getName(), typedValue.getValue());
+        // The current method can be called multiple times for the same property value (but with a different type).
+        // Since we don't care about the value type here (all the values are collected in a localized field) we need to
+        // make sure we don't add the same value twice. Derived classes can override this method and use the value type.
+        addFieldValueOnce(solrDocument, fieldName, fieldValue);
+    }
+
+    /**
+     * Adds a value to a document field, ensuring that the value is not duplicated.
+     * 
+     * @param solrDocument the document to add the field value to
+     * @param fieldName the field name
+     * @param fieldValue the field value to add
+     */
+    protected void addFieldValueOnce(SolrInputDocument solrDocument, String fieldName, Object fieldValue)
+    {
+        Collection<Object> fieldValues = solrDocument.getFieldValues(fieldName);
+        if (fieldValues == null || !fieldValues.contains(fieldValue)) {
+            solrDocument.addField(fieldName, fieldValue);
+        }
     }
 
     /**

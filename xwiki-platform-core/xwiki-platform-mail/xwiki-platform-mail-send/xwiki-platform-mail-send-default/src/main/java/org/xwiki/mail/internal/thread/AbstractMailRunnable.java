@@ -20,16 +20,10 @@
 package org.xwiki.mail.internal.thread;
 
 import javax.inject.Inject;
-import javax.inject.Provider;
 
 import org.slf4j.Logger;
 import org.xwiki.context.Execution;
-import org.xwiki.context.ExecutionContext;
-import org.xwiki.context.ExecutionContextException;
-import org.xwiki.context.ExecutionContextManager;
 import org.xwiki.mail.MailSenderConfiguration;
-
-import com.xpn.xwiki.XWikiContext;
 
 /**
  * Common code that sets up a XWiki Context in a Thread.
@@ -51,26 +45,7 @@ public abstract class AbstractMailRunnable implements MailRunnable
     protected volatile boolean shouldStop;
 
     @Inject
-    private Provider<XWikiContext> xwikiContextProvider;
-
-    @Inject
-    private Execution execution;
-
-    @Inject
-    private ExecutionContextManager executionContextManager;
-
-    protected void prepareContext(String wikiId) throws ExecutionContextException
-    {
-        // Isolate the context when sending a mail by creating a new context
-        ExecutionContext executionContext = new ExecutionContext();
-        this.executionContextManager.initialize(executionContext);
-
-        // Since the Execution Context has been created there's no XWikiContext in it and we initialize one
-        XWikiContext xwikiContext = this.xwikiContextProvider.get();
-
-        // Set the wiki in which to execute
-        xwikiContext.setWikiId(wikiId);
-    }
+    protected Execution execution;
 
     protected void removeContext()
     {

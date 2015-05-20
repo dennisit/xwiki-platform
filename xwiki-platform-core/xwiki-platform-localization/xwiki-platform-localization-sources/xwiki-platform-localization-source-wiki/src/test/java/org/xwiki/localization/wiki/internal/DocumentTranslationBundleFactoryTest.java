@@ -19,13 +19,9 @@
  */
 package org.xwiki.localization.wiki.internal;
 
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-
 import java.util.Collections;
 import java.util.Locale;
 
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -52,6 +48,11 @@ import com.xpn.xwiki.XWikiException;
 import com.xpn.xwiki.doc.XWikiDocument;
 import com.xpn.xwiki.objects.BaseObject;
 import com.xpn.xwiki.test.MockitoOldcoreRule;
+
+import org.junit.Assert;
+
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 @AllComponents
 public class DocumentTranslationBundleFactoryTest
@@ -80,14 +81,13 @@ public class DocumentTranslationBundleFactoryTest
         this.oldcore.getXWikiContext().setMainXWiki("xwiki");
         this.oldcore.getXWikiContext().setWikiId("xwiki");
 
-        when(
-            this.oldcore.getMockXWiki().getCurrentContentSyntaxId(Mockito.any(String.class),
-                Mockito.any(XWikiContext.class))).thenReturn("plain/1.0");
+        when(this.oldcore.getMockXWiki().getCurrentContentSyntaxId(Mockito.any(String.class),
+            Mockito.any(XWikiContext.class))).thenReturn("plain/1.0");
 
         this.mockQuery = mock(Query.class);
 
-        when(this.mockQueryManager.createQuery(Mockito.any(String.class), Mockito.any(String.class))).thenReturn(
-            this.mockQuery);
+        when(this.mockQueryManager.createQuery(Mockito.any(String.class),
+            Mockito.any(String.class))).thenReturn(this.mockQuery);
         when(this.mockQuery.execute()).thenReturn(Collections.EMPTY_LIST);
 
         when(this.mockWikiDescriptorManager.getMainWikiId()).thenReturn(this.oldcore.getXWikiContext().getMainXWiki());

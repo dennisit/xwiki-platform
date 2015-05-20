@@ -27,7 +27,6 @@ import javax.mail.Address;
 import javax.mail.Message;
 import javax.mail.MessagingException;
 import javax.mail.Multipart;
-import javax.mail.Session;
 import javax.mail.internet.MimeMessage;
 import javax.mail.internet.MimeMultipart;
 
@@ -63,11 +62,14 @@ public abstract class AbstractTemplateMimeMessageFactory extends AbstractMimeMes
     protected abstract MimeBodyPartFactory<DocumentReference> getMimeBodyPartFactory();
 
     @Override
-    public MimeMessage createMessage(Session session, Object templateReferenceObject,
-        Map<String, Object> parameters) throws MessagingException
+    public MimeMessage createMessage(Object templateReferenceObject, Map<String, Object> parameters)
+        throws MessagingException
     {
         DocumentReference templateReference = getTypedSource(templateReferenceObject, DocumentReference.class);
-        MimeMessage message = new ExtendedMimeMessage(session);
+
+        // Note: We don't create a Session here ATM since it's not required. The returned MimeMessage will be
+        // given a valid Session when it's deserialized from the mail content store for sending.
+        MimeMessage message = new ExtendedMimeMessage();
 
         // Handle optional "from" address.
         Address from = this.converterManager.convert(Address.class, parameters.get("from"));
@@ -88,7 +90,7 @@ public abstract class AbstractTemplateMimeMessageFactory extends AbstractMimeMes
         }
 
         // Handle the subject. Get it from the template
-        Map<String, String> velocityVariables = (Map<String, String>) parameters.get("velocityVariables");
+        Map<String, Object> velocityVariables = (Map<String, Object>) parameters.get("velocityVariables");
         String language = (String) parameters.get("language");
         Locale locale = LocaleUtils.toLocale(language);
         String subject = getTemplateManager().evaluate(templateReference, "subject", velocityVariables, locale);

@@ -1363,9 +1363,7 @@ ${Msz}Mb##
     <div id="${divid}-tagcloud" class="xwiki-livetable-tagcloud-tip hidden #if($hasTopFilters)splitted#end">
       <div>
         <div class="xwiki-livetable-tagcloud-container">
-          <h2>$services.localization.render('platform.livetable.tagsHelp')
-            <span>$services.localization.render('platform.livetable.tagsHelpCancel')</span>
-          </h2>
+          <h2>$services.localization.render('platform.livetable.tagsHelp') $services.localization.render('platform.livetable.tagsHelpCancel')</h2>
           <div class="xwiki-livetable-tagcloud"></div>
         </div>
         <div class="tippointer">
@@ -1377,7 +1375,10 @@ ${Msz}Mb##
   #if($tagcloud || $hasTopFilters)
   </div>
   #end
-  <table id="${divid}" class="xwiki-livetable"#if("$!options.description" != '') summary="$options.description"#end>
+  <table id="${divid}" class="xwiki-livetable">
+    #if("$!options.description" != '')
+      <caption class="sr-only">$options.description</caption>
+    #end
     <tr>
       <td class="xwiki-livetable-pagination">
         <span id="${divid}-limits" class="xwiki-livetable-limits"></span>
@@ -1388,11 +1389,11 @@ ${Msz}Mb##
         </span>
   #end
         <span id="${divid}-ajax-loader" class="xwiki-livetable-loader hidden">
-          <img src="$xwiki.getSkinFile('icons/xwiki/ajax-loader-large.gif')" alt="$services.localization.render('platform.livetable.loading')" title="" />
+          <img src="$xwiki.getSkinFile('icons/xwiki/ajax-loader-large.gif')" alt="$escapetool.xml($services.localization.render('platform.livetable.loading'))" title="" />
         </span>
         <span class="controlPagination">
-          <a title="$services.localization.render('platform.livetable.paginationPagePrevTitle')" class="prevPagination" href="#"><span class="hidden">$services.localization.render('platform.livetable.paginationPagePrevTitle')</span></a>
-          <a title="$services.localization.render('platform.livetable.paginationPageNextTitle')" class="nextPagination" href="#"><span class="hidden">$services.localization.render('platform.livetable.paginationPageNextTitle')</span></a>
+          <a title="$escapetool.xml($services.localization.render('platform.livetable.paginationPagePrevTitle'))" class="prevPagination" href="#"><span class="hidden">$services.localization.render('platform.livetable.paginationPagePrevTitle')</span></a>
+          <a title="$escapetool.xml($services.localization.render('platform.livetable.paginationPageNextTitle'))" class="nextPagination" href="#"><span class="hidden">$services.localization.render('platform.livetable.paginationPageNextTitle')</span></a>
         </span>
         <span class="pagination">
           <span class="xwiki-livetable-pagination-text">$services.localization.render('platform.livetable.paginationPage')</span>
@@ -1421,11 +1422,11 @@ ${Msz}Mb##
               ## Get the column's display name to use in the header.
               #set($displayName = "#getLivetableColumnDisplayName($colname, $colprop, $transprefix)")
               <th class="xwiki-livetable-display-header-text $!colprop.headerClass #if($!colprop.type=='hidden')hidden#end #if($isSortable)sortable #if($colname == $selectedColumn)selected $defaultOrder#else asc#end#end#if ($colname == '_avatar') avatar#end" scope="col">
-                #if($isSortable)<a rel="${colname}">#end
                 #if($isFilterable && ("$!colprop.type"=="text"||"$!colprop.type"=="number"))<label for="xwiki-livetable-${divid}-filter-${velocityCount}">#end
+                #if($isSortable)<a data-rel="${colname}">#end
                 $displayName
-                #if($isFilterable && ("$!colprop.type"=="text"||"$!colprop.type"=="number"))</label>#end
                 #if($isSortable)</a>#end
+                #if($isFilterable && ("$!colprop.type"=="text"||"$!colprop.type"=="number"))</label>#end
                 #set($columnCount = $mathtool.add($columnCount, 1))
               </th>
             #end
@@ -1461,7 +1462,7 @@ ${Msz}Mb##
                 </select>
                 </td>
               #elseif(("$!colprop.type" == 'text' || "$!colprop.type" == 'number') && $isFilterable)
-                <td class="xwiki-livetable-display-header-filter"><input id="xwiki-livetable-${divid}-filter-${velocityCount}" name="${colname}" type="text" #if("!$colprop.size" != '') size="${colprop.size}" title="$services.localization.render('platform.livetable.filtersTitle', [$services.localization.render("${transprefix}${colname}")])"#end /></td>
+                <td class="xwiki-livetable-display-header-filter"><input id="xwiki-livetable-${divid}-filter-${velocityCount}" name="${colname}" type="text" #if("$!colprop.size" != '') size="${colprop.size}" title="$escapetool.xml($services.localization.render('platform.livetable.filtersTitle', [$services.localization.render("${transprefix}${colname}")]))"#end /></td>
               #elseif("$!colprop.type" == 'hidden')
               #elseif($colname != '_actions' || $hasAdmin)
               <td class="xwiki-livetable-display-header-filter"></td>
@@ -1482,8 +1483,8 @@ ${Msz}Mb##
       <td class="xwiki-livetable-pagination">
         <span class="xwiki-livetable-limits"></span>
         <span class="controlPagination">
-          <a title="$services.localization.render('platform.livetable.paginationPagePrevTitle')" class="prevPagination" href="#"><span class="hidden">$services.localization.render('platform.livetable.paginationPagePrevTitle')</span></a>
-          <a title="$services.localization.render('platform.livetable.paginationPageNextTitle')" class="nextPagination" href="#"><span class="hidden">$services.localization.render('platform.livetable.paginationPageNextTitle')</span></a>
+          <a title="$escapetool.xml($services.localization.render('platform.livetable.paginationPagePrevTitle'))" class="prevPagination" href="#"><span class="hidden">$services.localization.render('platform.livetable.paginationPagePrevTitle')</span></a>
+          <a title="$escapetool.xml($services.localization.render('platform.livetable.paginationPageNextTitle'))" class="nextPagination" href="#"><span class="hidden">$services.localization.render('platform.livetable.paginationPageNextTitle')</span></a>
         </span>
         <span class="pagination">
           <span class="xwiki-livetable-pagination-text">$services.localization.render('platform.livetable.paginationPage')</span>
@@ -2500,7 +2501,7 @@ $string##
  *
  * @param $sortable whether the list of selected users should be sortable or not
  *#
-#macro(userPicker_import $sortable)
+#macro (userPicker_import $sortable)
   #if ($sortable)
     ## Needed for sorting the selected values.
     #set ($discard = $xwiki.jsfx.use('js/scriptaculous/dragdrop.js'))
@@ -2515,6 +2516,43 @@ $string##
   ## The actual user picker. Provides a custom display for the user suggestions and selected users.
   #set ($discard = $xwiki.ssfx.use('uicomponents/widgets/userpicker/userPicker.css', true))
   #set ($discard = $xwiki.jsfx.use('uicomponents/widgets/userpicker/userPicker.js', true))
+#end
+
+#macro (userPicker_input $multiSelect $parameters)
+  #set ($parameters.type = 'text')
+  #if ($multiSelect)
+    #set ($discard = $parameters.put('class', "$!parameters.get('class') multipleSelection"))
+  #end
+  #set ($attributes = [])
+  #foreach ($entry in $parameters.entrySet())
+    #set ($discard = $attributes.add("$escapetool.xml($entry.key)='$!escapetool.xml($entry.value)'"))
+  #end
+  <input $stringtool.join($attributes, ' ') />
+#end
+
+#macro (userPicker $multiSelect $parameters)
+  #userPicker_import($multiSelect)
+  #set ($class = 'suggestUsers')
+  #set ($userScope = "$!services.wiki.user.userScope")
+  #if ($userScope == 'LOCAL_AND_GLOBAL')
+    #set ($class = "$class withScope")
+  #elseif ($userScope == 'GLOBAL_ONLY')
+    #set ($class = "$class global")
+  #end
+  #set ($discard = $parameters.put('class', "$!parameters.get('class') $class"))
+  #userPicker_input($multiSelect $parameters)
+#end
+
+#macro (groupPicker $multiSelect $parameters)
+  #userPicker_import($multiSelect)
+  #set ($class = 'suggestGroups')
+  #if (!$xcontext.isMainWiki() && "$!services.wiki.user.userScope" != 'LOCAL_ONLY')
+    ## We can have both local and global groups in a subwiki that accepts global users. In case the wiki accepts only
+    ## global users, local groups can be used to setup various rights for the global users.
+    #set ($class = "$class withScope")
+  #end
+  #set ($discard = $parameters.put('class', "$!parameters.get('class') $class"))
+  #userPicker_input($multiSelect $parameters)
 #end
 
 #**

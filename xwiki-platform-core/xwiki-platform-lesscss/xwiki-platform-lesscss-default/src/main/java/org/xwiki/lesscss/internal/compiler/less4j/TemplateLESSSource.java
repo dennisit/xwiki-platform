@@ -19,9 +19,8 @@
  */
 package org.xwiki.lesscss.internal.compiler.less4j;
 
-import java.io.File;
-
-import org.xwiki.lesscss.internal.compiler.CachedIntegratedLESSCompiler;
+import org.apache.commons.lang3.StringUtils;
+import org.xwiki.lesscss.internal.compiler.CachedLESSCompiler;
 import org.xwiki.skin.Skin;
 import org.xwiki.template.Template;
 import org.xwiki.template.TemplateContent;
@@ -35,8 +34,10 @@ import org.xwiki.template.TemplateManager;
  */
 public class TemplateLESSSource extends AbstractLESSSource
 {
+    private static final String FILE_SEPARATOR = "/";
+    
     private String templateName;
-
+    
     /**
      * Default constructor.
      * @param templateManager the template manager component
@@ -45,8 +46,18 @@ public class TemplateLESSSource extends AbstractLESSSource
      */
     public TemplateLESSSource(TemplateManager templateManager, Skin skin, String templateName)
     {
-        super(templateManager, skin, new File(templateName).getParent());
+        super(templateManager, skin, getParentFolder(templateName));
         this.templateName = templateName;
+    }
+
+    /**
+     * Get the parent folder of a path using "/" as file separator.
+     * @param templateName name of the template
+     * @return the parent folder path
+     */
+    private static String getParentFolder(String templateName)
+    {
+        return StringUtils.substringBeforeLast(templateName, FILE_SEPARATOR);
     }
 
     @Override
@@ -63,7 +74,7 @@ public class TemplateLESSSource extends AbstractLESSSource
             // skin might have. Actually we have no way to know which .less.vm are included, without running LESS.
             //
             // That is why we do not execute Velocity on any ".less.vm" file but only on the main skin template.
-            String mainSkinTemplate = "less/" + CachedIntegratedLESSCompiler.MAIN_SKIN_STYLE_FILENAME;
+            String mainSkinTemplate = "less/" + CachedLESSCompiler.MAIN_SKIN_STYLE_FILENAME;
             if (mainSkinTemplate.equals(templateName)) {
                 return templateManager.renderFromSkin(templateName, skin);
             } 

@@ -20,11 +20,14 @@
 package org.xwiki.resource;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.lang3.builder.EqualsBuilder;
+import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.xwiki.stability.Unstable;
 import org.xwiki.text.XWikiToStringBuilder;
@@ -64,14 +67,27 @@ public abstract class AbstractResourceReference implements ResourceReference
     }
 
     @Override
-    public void addParameter(String name, String value)
+    public void addParameter(String name, Object value)
     {
         List<String> list = this.parameters.get(name);
         if (list == null) {
             list = new ArrayList<>();
         }
         if (value != null) {
-            list.add(value);
+            // If the value is a Collection or an Array then add a multivalued parameter!
+            if (value.getClass().isArray()) {
+                Object[] objectValues = (Object[]) value;
+                for (Object objectValue : objectValues) {
+                    list.add(objectValue.toString());
+                }
+            } else if (Collection.class.isAssignableFrom(value.getClass())) {
+                Collection<?> collectionValues = (Collection<?>) value;
+                for (Object collectionValue : collectionValues) {
+                    list.add(collectionValue.toString());
+                }
+            } else {
+                list.add(value.toString());
+            }
         }
         this.parameters.put(name, list);
     }
@@ -103,8 +119,36 @@ public abstract class AbstractResourceReference implements ResourceReference
     public String toString()
     {
         ToStringBuilder builder = new XWikiToStringBuilder(this);
-        builder.append("type", getType() == null ? null : getType());
+        builder.append("type", getType());
         builder.append("parameters", getParameters());
         return builder.toString();
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return new HashCodeBuilder(9, 5)
+            .append(getType())
+            .append(getParameters())
+            .toHashCode();
+    }
+
+    @Override
+    public boolean equals(Object object)
+    {
+        if (object == null) {
+            return false;
+        }
+        if (object == this) {
+            return true;
+        }
+        if (object.getClass() != getClass()) {
+            return false;
+        }
+        ResourceReference rhs = (ResourceReference) object;
+        return new EqualsBuilder()
+            .append(getType(), rhs.getType())
+            .append(getParameters(), rhs.getParameters())
+            .isEquals();
     }
 }

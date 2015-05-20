@@ -31,7 +31,9 @@ import javax.mail.internet.MimeMessage;
 
 import org.apache.commons.lang.exception.ExceptionUtils;
 import org.xwiki.component.annotation.Component;
+import org.xwiki.context.ExecutionContext;
 import org.xwiki.context.ExecutionContextException;
+import org.xwiki.context.ExecutionContextManager;
 import org.xwiki.mail.MailContentStore;
 import org.xwiki.mail.MailListener;
 
@@ -46,14 +48,15 @@ import org.xwiki.mail.MailListener;
 @Singleton
 public class SendMailRunnable extends AbstractMailRunnable
 {
-    private static final String WIKI_PARAMETER_KEY = "wikiId";
-
     @Inject
     private MailQueueManager<SendMailQueueItem> sendMailQueueManager;
 
     @Inject
     @Named("filesystem")
     private MailContentStore mailContentStore;
+
+    @Inject
+    private ExecutionContextManager executionContextManager;
 
     private Transport currentTransport;
 
@@ -65,10 +68,23 @@ public class SendMailRunnable extends AbstractMailRunnable
     public void run()
     {
         try {
+            // Make sure we initialize an execution context.
+            prepareContext();
+
             runInternal();
+        } catch (ExecutionContextException e) {
+            // Not much to do but log.
+            logger.error("Failed to initialize the send mail thread's execution context", e);
         } finally {
             closeTransport();
         }
+    }
+
+    private void prepareContext() throws ExecutionContextException
+    {
+        // Create a single execution context and use it for the send mail thread.
+        ExecutionContext executionContext = new ExecutionContext();
+        this.executionContextManager.initialize(executionContext);
     }
 
     private void runInternal()
@@ -108,12 +124,9 @@ public class SendMailRunnable extends AbstractMailRunnable
      * Send the mail.
      *
      * @param item the queue item containing all the data for sending the mail
-     * @throws org.xwiki.context.ExecutionContextException when the XWiki Context fails to be set up
      */
-    protected void sendMail(SendMailQueueItem item) throws ExecutionContextException
+    protected void sendMail(SendMailQueueItem item)
     {
-        prepareContext(item.getWikiId());
-
         MailListener listener = item.getListener();
 
         MimeMessage message;
@@ -147,12 +160,12 @@ public class SendMailRunnable extends AbstractMailRunnable
 
             // Step 4: Notify the user of the success if a listener has been provided
             if (listener != null) {
-                listener.onSuccess(message, Collections.singletonMap(WIKI_PARAMETER_KEY, (Object) item.getWikiId()));
+                listener.onSuccess(message, Collections.<String, Object>emptyMap());
             }
         } catch (Exception e) {
             // An error occurred, notify the user if a listener has been provided.
             if (listener != null) {
-                listener.onError(message, e, Collections.singletonMap(WIKI_PARAMETER_KEY, (Object) item.getWikiId()));
+                listener.onError(message, e, Collections.<String, Object>emptyMap());
             }
         }
     }

@@ -19,6 +19,8 @@
  */
 package org.xwiki.test.ui;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
@@ -45,6 +47,7 @@ import org.apache.commons.httpclient.UsernamePasswordCredentials;
 import org.apache.commons.httpclient.auth.AuthScope;
 import org.apache.commons.httpclient.methods.GetMethod;
 import org.apache.commons.httpclient.methods.InputStreamRequestEntity;
+import org.apache.commons.httpclient.methods.PostMethod;
 import org.apache.commons.httpclient.methods.PutMethod;
 import org.apache.commons.httpclient.methods.RequestEntity;
 import org.apache.commons.io.IOUtils;
@@ -139,7 +142,7 @@ public class TestUtils
     public TestUtils()
     {
         this.adminHTTPClient = new HttpClient();
-        this.adminHTTPClient.getState().setCredentials(AuthScope.ANY, ADMIN_CREDENTIALS);
+        this.adminHTTPClient.getState().setCredentials(AuthScope.ANY, SUPER_ADMIN_CREDENTIALS);
         this.adminHTTPClient.getParams().setAuthenticationPreemptive(true);
     }
 
@@ -175,6 +178,28 @@ public class TestUtils
         }
     }
 
+    /**
+     * @since 7.0RC1
+     */
+    public void setDefaultCredentials(String username, String password)
+    {
+        this.adminHTTPClient.getState().setCredentials(AuthScope.ANY,
+            new UsernamePasswordCredentials(username, password));
+    }
+
+    /**
+     * @since 7.0RC1
+     */
+    public void setDefaultCredentials(UsernamePasswordCredentials defaultCredentials)
+    {
+        this.adminHTTPClient.getState().setCredentials(AuthScope.ANY, defaultCredentials);
+    }
+
+    public UsernamePasswordCredentials getDefaultCredentials()
+    {
+        return (UsernamePasswordCredentials) this.adminHTTPClient.getState().getCredentials(AuthScope.ANY);
+    }
+
     public void loginAsSuperAdmin()
     {
         login(SUPER_ADMIN_CREDENTIALS.getUserName(), SUPER_ADMIN_CREDENTIALS.getPassword());
@@ -197,14 +222,7 @@ public class TestUtils
 
     public void login(String username, String password)
     {
-        if (!username.equals(getLoggedInUserName())) {
-            // Log in and direct to a non existent page so that it loads very fast and we don't incur the time cost of
-            // going to the home page for example.
-            // Also recache the CSRF token
-            getDriver().get(getURLToLoginAndGotoPage(username, password, getURL("XWiki", "Register", "register")));
-            recacheSecretTokenWhenOnRegisterPage();
-            getDriver().get(getURLToNonExistentPage());
-        }
+        loginAndGotoPage(username, password, null);
     }
 
     public void loginAndGotoPage(String username, String password, String pageURL)
@@ -215,8 +233,14 @@ public class TestUtils
             // Also recache the CSRF token
             getDriver().get(getURLToLoginAndGotoPage(username, password, getURL("XWiki", "Register", "register")));
             recacheSecretTokenWhenOnRegisterPage();
-            // Go to the page asked
-            getDriver().get(pageURL);
+            if (pageURL != null) {
+                // Go to the page asked
+                getDriver().get(pageURL);
+            } else {
+                getDriver().get(getURLToNonExistentPage());
+            }
+
+            setDefaultCredentials(username, password);
         }
     }
 
@@ -329,6 +353,8 @@ public class TestUtils
         Object... properties)
     {
         createUser(username, password, getURLToLoginAndGotoPage(username, password, url), properties);
+
+        setDefaultCredentials(username, password);
     }
 
     public void createUser(final String username, final String password, String redirectURL, Object... properties)
@@ -805,7 +831,13 @@ public class TestUtils
     public void updateObject(String space, String page, String className, int objectNumber, Object... properties)
     {
         // TODO: would be even quicker using REST
-        gotoPage(space, page, "save", toQueryParameters(className, objectNumber, properties));
+        Map<String, Object> queryParameters =
+            (Map<String, Object>) toQueryParameters(className, objectNumber, properties);
+
+        // Append the updateOrCreate objectPolicy since we always want this in our tests.
+        queryParameters.put("objectPolicy", "updateOrCreate");
+
+        gotoPage(space, page, "save", queryParameters);
     }
 
     public ClassEditPage addClassProperty(String space, String page, String propertyName, String propertyType)
@@ -973,10 +1005,16 @@ public class TestUtils
     public void attachFile(String space, String page, String name, InputStream is, boolean failIfExists,
         UsernamePasswordCredentials credentials) throws Exception
     {
-        if (credentials != null) {
-            this.adminHTTPClient.getState().setCredentials(AuthScope.ANY, credentials);
+        UsernamePasswordCredentials currentCredentials = getDefaultCredentials();
+
+        try {
+            if (credentials != null) {
+                setDefaultCredentials(credentials);
+            }
+            attachFile(space, page, name, is, failIfExists);
+        } finally {
+            setDefaultCredentials(currentCredentials);
         }
-        attachFile(space, page, name, is, failIfExists);
     }
 
     public void attachFile(String space, String page, String name, InputStream is, boolean failIfExists)
@@ -1016,8 +1054,51 @@ public class TestUtils
                 + escapeURL(file.getName()), Status.OK.getStatusCode());
     }
 
-    public InputStream getRESTInputStream(String resourceUri, Map<String, Object[]> queryParams, Object... elements)
+    public InputStream getRESTInputStream(String resourceUri, Map<String, ?> queryParams, Object... elements)
         throws Exception
+    {
+        return getInputStream(BASE_REST_URL, resourceUri, queryParams, elements);
+    }
+
+    public InputStream getInputStream(String path, Map<String, ?> queryParams) throws Exception
+    {
+        return getInputStream(BASE_URL, path, queryParams);
+    }
+
+    public String getString(String path, Map<String, ?> queryParams) throws Exception
+    {
+        try (InputStream inputStream = getInputStream(BASE_URL, path, queryParams)) {
+            return IOUtils.toString(inputStream);
+        }
+    }
+
+    public InputStream getInputStream(String prefix, String path, Map<String, ?> queryParams, Object... elements)
+        throws Exception
+    {
+        String cleanPrefix = prefix.endsWith("/") ? prefix.substring(0, prefix.length() - 1) : prefix;
+        if (path.startsWith(cleanPrefix)) {
+            cleanPrefix = "";
+        }
+
+        UriBuilder builder = UriBuilder.fromUri(cleanPrefix).path(path.startsWith("/") ? path.substring(1) : path);
+
+        if (queryParams != null) {
+            for (Map.Entry<String, ?> entry : queryParams.entrySet()) {
+                if (entry.getValue() instanceof Object[]) {
+                    builder.queryParam(entry.getKey(), (Object[]) entry.getValue());
+                } else {
+                    builder.queryParam(entry.getKey(), entry.getValue());
+                }
+            }
+        }
+
+        String url = builder.build(elements).toString();
+
+        return executeGet(url, Status.OK.getStatusCode()).getResponseBodyAsStream();
+    }
+
+    public InputStream postRESTInputStream(String resourceUri, Object restObject, Map<String, Object[]> queryParams,
+        Object... elements) throws Exception
     {
         UriBuilder builder =
             UriBuilder.fromUri(BASE_REST_URL.substring(0, BASE_REST_URL.length() - 1)).path(
@@ -1031,7 +1112,11 @@ public class TestUtils
 
         String url = builder.build(elements).toString();
 
-        return executeGet(url, Status.OK.getStatusCode()).getResponseBodyAsStream();
+        ByteArrayOutputStream stream = new ByteArrayOutputStream();
+        marshaller.marshal(restObject, stream);
+
+        return executePost(url, new ByteArrayInputStream(stream.toByteArray()), MediaType.APPLICATION_XML,
+            Status.OK.getStatusCode()).getResponseBodyAsStream();
     }
 
     public byte[] getRESTBuffer(String resourceUri, Map<String, Object[]> queryParams, Object... elements)
@@ -1060,6 +1145,22 @@ public class TestUtils
         return resource;
     }
 
+    public <T> T postRESTResource(String resourceUri, Object entity, Object... elements) throws Exception
+    {
+        return postRESTResource(resourceUri, entity, Collections.<String, Object[]>emptyMap(), elements);
+    }
+
+    public <T> T postRESTResource(String resourceUri, Object entity, Map<String, Object[]> queryParams,
+        Object... elements) throws Exception
+    {
+        T resource;
+        try (InputStream is = postRESTInputStream(resourceUri, entity, queryParams, elements)) {
+            resource = (T) unmarshaller.unmarshal(is);
+        }
+
+        return resource;
+    }
+
     protected GetMethod executeGet(String uri, int expectedCode) throws Exception
     {
         GetMethod getMethod = new GetMethod(uri);
@@ -1070,6 +1171,21 @@ public class TestUtils
         }
 
         return getMethod;
+    }
+
+    protected PostMethod executePost(String uri, InputStream content, String mediaType, int... expectedCodes)
+        throws Exception
+    {
+        PostMethod putMethod = new PostMethod(uri);
+        RequestEntity entity = new InputStreamRequestEntity(content, mediaType);
+        putMethod.setRequestEntity(entity);
+
+        int code = this.adminHTTPClient.executeMethod(putMethod);
+        if (!ArrayUtils.contains(expectedCodes, code)) {
+            throw new Exception("Failed to execute post [" + uri + "] with code [" + code + "]");
+        }
+
+        return putMethod;
     }
 
     protected PutMethod executePut(String uri, InputStream content, String mediaType, int... expectedCodes)

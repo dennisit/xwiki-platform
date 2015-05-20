@@ -19,11 +19,12 @@
  */
 package com.xpn.xwiki.test.mockito;
 
-import static org.mockito.Matchers.argThat;
-
+import org.xwiki.cache.config.CacheConfiguration;
 import org.xwiki.model.reference.DocumentReference;
 
 import com.xpn.xwiki.doc.XWikiDocument;
+
+import static org.mockito.Matchers.argThat;
 
 /**
  * Various matchers for oldcore APIs.
@@ -36,5 +37,13 @@ public class OldcoreMatchers
     public static XWikiDocument isDocument(DocumentReference expected)
     {
         return argThat(new XWikiDocumentMatcher(expected));
+    }
+
+    /**
+     * @since 7.1M1
+     */
+    public static CacheConfiguration isCacheConfiguration(String id)
+    {
+        return argThat(new CacheConfigurationMatcher(id));
     }
 }

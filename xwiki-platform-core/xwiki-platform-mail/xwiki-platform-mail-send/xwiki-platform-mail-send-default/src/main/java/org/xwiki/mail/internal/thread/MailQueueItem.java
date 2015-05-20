@@ -45,9 +45,4 @@ public interface MailQueueItem
      * @return the unique id of the batch
      */
     String getBatchId();
-
-    /**
-     * @return the id of the wiki that will be used to set the context when preparing and sending the Mime Message
-     */
-    String getWikiId();
 }

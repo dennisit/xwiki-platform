@@ -21,17 +21,23 @@ package org.xwiki.url.internal.container;
 
 import java.net.URL;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
+import javax.inject.Provider;
+import javax.servlet.http.HttpServletRequest;
+
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.xwiki.configuration.ConfigurationSource;
-import org.xwiki.context.Execution;
-import org.xwiki.context.ExecutionContext;
+import org.xwiki.container.Container;
+import org.xwiki.container.servlet.ServletRequest;
 import org.xwiki.test.mockito.MockitoComponentMockingRule;
 import org.xwiki.url.ExtendedURL;
 
 import com.xpn.xwiki.XWikiContext;
-import com.xpn.xwiki.web.XWikiRequest;
 
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
@@ -44,78 +50,106 @@ import static org.mockito.Mockito.*;
  */
 public class ExtendedURLURLNormalizerTest
 {
+    private ConfigurationSource configurationSource;
+
+    private Container container;
+
+    private XWikiContext xcontext = mock(XWikiContext.class);
+
     @Rule
     public MockitoComponentMockingRule<ExtendedURLURLNormalizer> mocker =
         new MockitoComponentMockingRule<>(ExtendedURLURLNormalizer.class);
 
+    @Before
+    public void configure() throws Exception
+    {
+        this.configurationSource = this.mocker.getInstance(ConfigurationSource.class, "xwikicfg");
+        this.container = this.mocker.getInstance(Container.class);
+
+        Provider<XWikiContext> xcontextProvider = this.mocker.getInstance(XWikiContext.TYPE_PROVIDER);
+        when(xcontextProvider.get()).thenReturn(xcontext);
+    }
+
     @Test
     public void normalizeWhenConfigurationPropertyDefined() throws Exception
     {
-        ConfigurationSource configurationSource = this.mocker.getInstance(ConfigurationSource.class, "xwikicfg");
-        when(configurationSource.getProperty("xwiki.webapppath", "")).thenReturn("xwiki");
+        when(this.configurationSource.getProperty("xwiki.webapppath")).thenReturn("xwiki");
 
         ExtendedURL extendedURL = new ExtendedURL(Arrays.asList("one", "two"));
-        assertEquals("xwiki/one/two", this.mocker.getComponentUnderTest().normalize(extendedURL).serialize());
+        assertEquals("/xwiki/one/two", this.mocker.getComponentUnderTest().normalize(extendedURL).serialize());
+    }
+
+    @Test
+    public void normalizeWhenConfigurationPropertyDefinedButWithLeadingAndTrailingSlash() throws Exception
+    {
+        when(this.configurationSource.getProperty("xwiki.webapppath")).thenReturn("/xwiki/");
+
+        ExtendedURL extendedURL = new ExtendedURL(Arrays.asList("one", "two"));
+        assertEquals("/xwiki/one/two", this.mocker.getComponentUnderTest().normalize(extendedURL).serialize());
     }
 
     @Test
     public void normalizeWhenNoConfigurationPropertyAndRequest() throws Exception
     {
-        ConfigurationSource configurationSource = this.mocker.getInstance(ConfigurationSource.class, "xwikicfg");
-        when(configurationSource.getProperty("xwiki.webapppath", "")).thenReturn("");
-
-        Execution execution = this.mocker.getInstance(Execution.class);
-        ExecutionContext executionContext = mock(ExecutionContext.class);
-        when(execution.getContext()).thenReturn(executionContext);
-        XWikiContext xwikiContext = mock(XWikiContext.class);
-        when(executionContext.getProperty("xwikicontext")).thenReturn(xwikiContext);
-        XWikiRequest xwikiRequest = mock(XWikiRequest.class);
-        when(xwikiContext.getRequest()).thenReturn(xwikiRequest);
-        when(xwikiRequest.getContextPath()).thenReturn("xwiki");
+        HttpServletRequest request = createMockRequest();
+        when(request.getContextPath()).thenReturn("/xwiki");
 
         ExtendedURL extendedURL = new ExtendedURL(Arrays.asList("one", "two"));
-        assertEquals("xwiki/one/two", this.mocker.getComponentUnderTest().normalize(extendedURL).serialize());
+        assertEquals("/xwiki/one/two", this.mocker.getComponentUnderTest().normalize(extendedURL).serialize());
     }
 
     @Test
-    public void normalizeWhenNoConfigurationPropertyAndNoRequest() throws Exception
+    public void normalizeWhenNoConfigurationPropertyAndNoRequestButURL() throws Exception
     {
-        ConfigurationSource configurationSource = this.mocker.getInstance(ConfigurationSource.class, "xwikicfg");
-        when(configurationSource.getProperty("xwiki.webapppath", "")).thenReturn("");
-
-        Execution execution = this.mocker.getInstance(Execution.class);
-        ExecutionContext executionContext = mock(ExecutionContext.class);
-        when(execution.getContext()).thenReturn(executionContext);
-        XWikiContext xwikiContext = mock(XWikiContext.class);
-        when(executionContext.getProperty("xwikicontext")).thenReturn(xwikiContext);
-        when(xwikiContext.getRequest()).thenReturn(null);
-        when(xwikiContext.getURL()).thenReturn(new URL("http://localhost:8080/xwiki/bin/view/space/page"));
+        when(this.xcontext.getURL()).thenReturn(new URL("http://localhost:8080/xwiki/bin/view/space/page"));
 
         ExtendedURL extendedURL = new ExtendedURL(Arrays.asList("one", "two"));
-        assertEquals("xwiki/one/two", this.mocker.getComponentUnderTest().normalize(extendedURL).serialize());
+        assertEquals("/xwiki/one/two", this.mocker.getComponentUnderTest().normalize(extendedURL).serialize());
+    }
+
+    @Test
+    public void normalizeWhenNoConfigurationPropertyAndNoRequestButURLWithNoTrailingSlash() throws Exception
+    {
+        when(this.xcontext.getURL()).thenReturn(new URL("http://localhost:8080/xwiki"));
+
+        ExtendedURL extendedURL = new ExtendedURL(Arrays.asList("one", "two"));
+        assertEquals("/xwiki/one/two", this.mocker.getComponentUnderTest().normalize(extendedURL).serialize());
     }
 
     @Test
     public void normalizeWhenNoConfigurationPropertyAndNoRequestAndNoURL() throws Exception
     {
-        ConfigurationSource configurationSource = this.mocker.getInstance(ConfigurationSource.class, "xwikicfg");
-        when(configurationSource.getProperty("xwiki.webapppath", "")).thenReturn("");
-
-        Execution execution = this.mocker.getInstance(Execution.class);
-        ExecutionContext executionContext = mock(ExecutionContext.class);
-        when(execution.getContext()).thenReturn(executionContext);
-        XWikiContext xwikiContext = mock(XWikiContext.class);
-        when(executionContext.getProperty("xwikicontext")).thenReturn(xwikiContext);
-        when(xwikiContext.getRequest()).thenReturn(null);
-        when(xwikiContext.getURL()).thenReturn(null);
-
         ExtendedURL extendedURL = new ExtendedURL(Arrays.asList("one", "two"));
         try {
             this.mocker.getComponentUnderTest().normalize(extendedURL);
             fail("Should have thrown an exception");
         } catch (RuntimeException expected) {
-            assertEquals("Failed to normalize the URL [one/two] since the application's Servlet context couldn't be "
+            assertEquals("Failed to normalize the URL [/one/two] since the application's Servlet context couldn't be "
                 + "computed.", expected.getMessage());
         }
+    }
+
+    @Test
+    public void normalizeExtendedURLWithParameters() throws Exception
+    {
+        when(this.configurationSource.getProperty("xwiki.webapppath")).thenReturn("xwiki");
+
+        Map<String, List<String>> params = new HashMap<>();
+        params.put("age", Arrays.asList("32"));
+        params.put("colors", Arrays.asList("red", "blue"));
+
+        ExtendedURL extendedURL = new ExtendedURL(Arrays.asList("one", "two"), params);
+        assertSame(params, this.mocker.getComponentUnderTest().normalize(extendedURL).getParameters());
+    }
+
+    private HttpServletRequest createMockRequest()
+    {
+        ServletRequest request = mock(ServletRequest.class);
+        when(this.container.getRequest()).thenReturn(request);
+
+        HttpServletRequest httpRequest = mock(HttpServletRequest.class);
+        when(request.getHttpServletRequest()).thenReturn(httpRequest);
+
+        return httpRequest;
     }
 }

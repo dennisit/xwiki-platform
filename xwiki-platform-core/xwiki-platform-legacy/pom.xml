@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.xwiki.platform</groupId>
     <artifactId>xwiki-platform-core</artifactId>
-    <version>7.0-SNAPSHOT</version>
+    <version>7.1-SNAPSHOT</version>
   </parent>
   <artifactId>xwiki-platform-legacy</artifactId>
   <name>XWiki Platform - Legacy</name>
@@ -38,7 +38,6 @@
   <modules>
     <!-- Sorted Alphabetically -->
     <module>xwiki-platform-legacy-annotation</module>
-    <module>xwiki-platform-legacy-crypto-script</module>
     <module>xwiki-platform-legacy-model</module>
     <module>xwiki-platform-legacy-observation</module>
     <module>xwiki-platform-legacy-office-importer</module>
@@ -47,6 +46,7 @@
     <module>xwiki-platform-legacy-url</module>
     <module>xwiki-platform-legacy-web</module>
     <module>xwiki-platform-legacy-ldap</module>
+    <module>xwiki-platform-legacy-watchlist-api</module>
   </modules>
   <build>
     <pluginManagement>

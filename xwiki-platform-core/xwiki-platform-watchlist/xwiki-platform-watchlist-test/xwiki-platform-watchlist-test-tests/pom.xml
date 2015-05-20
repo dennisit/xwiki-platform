@@ -25,14 +25,14 @@
   <parent>
     <groupId>org.xwiki.platform</groupId>
     <artifactId>xwiki-platform-watchlist-test</artifactId>
-    <version>7.0-SNAPSHOT</version>
+    <version>7.1-SNAPSHOT</version>
   </parent>
   <artifactId>xwiki-platform-watchlist-test-tests</artifactId>
   <name>XWiki Platform - Watchlist - Tests - Functional Tests</name>
   <packaging>jar</packaging>
   <description>Tests for the Watchlist</description>
   <properties>
-    <!-- Override in order to add the WatchlistPlugin itself and its dependencies -->
+    <!-- Override in order to add the WatchlistPlugin's dependencies -->
     <xwikiCfgPlugins>\
       com.xpn.xwiki.plugin.skinx.JsSkinExtensionPlugin,\
       com.xpn.xwiki.plugin.skinx.JsSkinFileExtensionPlugin,\
@@ -41,12 +41,11 @@
       com.xpn.xwiki.plugin.skinx.LinkExtensionPlugin,\
       com.xpn.xwiki.plugin.diff.DiffPlugin,\
       com.xpn.xwiki.plugin.scheduler.SchedulerPlugin,\
-      com.xpn.xwiki.plugin.mailsender.MailSenderPlugin,\
-      com.xpn.xwiki.plugin.activitystream.plugin.ActivityStreamPlugin,\
-      com.xpn.xwiki.plugin.watchlist.WatchListPlugin
+      com.xpn.xwiki.plugin.activitystream.plugin.ActivityStreamPlugin
     </xwikiCfgPlugins>
     <xwikiCfgSuperadminPassword>pass</xwikiCfgSuperadminPassword>
-    <xwikiDbHbmCommonExtraMappings>activitystream.hbm.xml</xwikiDbHbmCommonExtraMappings>
+    <xwikiDbHbmCommonExtraMappings>activitystream.hbm.xml,mailsender.hbm.xml</xwikiDbHbmCommonExtraMappings>
+    <xwikiPropertiesAdditionalProperties>watchlist.realtime.enabled = true</xwikiPropertiesAdditionalProperties>
     <!-- Functional tests are allowed to output content to the console -->
     <xwiki.surefire.captureconsole.skip>true</xwiki.surefire.captureconsole.skip>
   </properties>
@@ -63,10 +62,11 @@
       <type>xar</type>
       <version>${project.version}</version>
     </dependency>
-    <!-- Since we send email in the test we need a Mail Sender API implementation -->
+    <!-- We need the mail UI as well, since we want to configure it in our tests and we need Mail.SendMailConfigClass for that. -->
     <dependency>
       <groupId>org.xwiki.platform</groupId>
-      <artifactId>xwiki-platform-mail-send-default</artifactId>
+      <artifactId>xwiki-platform-mail-ui</artifactId>
+      <type>xar</type>
       <version>${project.version}</version>
       <scope>runtime</scope>
     </dependency>
@@ -83,7 +83,14 @@
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
-    <!-- used to trigger the watchlist notification mail -->
+    <!-- Used to test the watch users feature -->
+    <dependency>
+      <groupId>org.xwiki.platform</groupId>
+      <artifactId>xwiki-platform-user-profile-test-pageobjects</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <!-- Used to trigger the watchlist notification mail -->
     <dependency>
       <groupId>org.xwiki.platform</groupId>
       <artifactId>xwiki-platform-scheduler-test-pageobjects</artifactId>
@@ -129,11 +136,17 @@
             <artifactId>xwiki-platform-instance</artifactId>
             <version>${project.version}</version>
           </dependency>
-          <!-- need explicit dependency here so the package tool does not fail -->
+          <!-- Need explicit dependency here so the package tool does not fail to find activitystream.hbm.xml in the classpath. -->
           <dependency>
             <groupId>org.xwiki.platform</groupId>
             <artifactId>xwiki-platform-activitystream-api</artifactId>
             <scope>runtime</scope>
+            <version>${project.version}</version>
+          </dependency>
+          <!-- Need explicit dependency here so the package tool does not fail to find mailsender.hbm.xml in the classpath. -->
+          <dependency>
+            <groupId>org.xwiki.platform</groupId>
+            <artifactId>xwiki-platform-mail-send-storage</artifactId>
             <version>${project.version}</version>
           </dependency>
         </dependencies>

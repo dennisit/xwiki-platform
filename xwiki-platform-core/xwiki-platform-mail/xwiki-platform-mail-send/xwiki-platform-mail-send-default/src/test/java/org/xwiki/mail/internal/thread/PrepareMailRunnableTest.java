@@ -20,7 +20,6 @@
 package org.xwiki.mail.internal.thread;
 
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.Properties;
 import java.util.UUID;
 
@@ -34,6 +33,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.Mockito;
 import org.xwiki.component.util.DefaultParameterizedType;
+import org.xwiki.context.ExecutionContext;
 import org.xwiki.mail.MailContentStore;
 import org.xwiki.mail.MailListener;
 import org.xwiki.mail.MailState;
@@ -56,15 +56,12 @@ import static org.mockito.Mockito.when;
  * @version $Id$
  * @since 6.4
  */
-@ComponentList({
-    MemoryMailListener.class,
-    PrepareMailQueueManager.class
-})
+@ComponentList({MemoryMailListener.class, PrepareMailQueueManager.class})
 public class PrepareMailRunnableTest
 {
     @Rule
-    public MockitoComponentMockingRule<PrepareMailRunnable> mocker =
-        new MockitoComponentMockingRule<>(PrepareMailRunnable.class);
+    public MockitoComponentMockingRule<PrepareMailRunnable> mocker = new MockitoComponentMockingRule<>(
+        PrepareMailRunnable.class);
 
     @Before
     public void setUp() throws Exception
@@ -87,16 +84,28 @@ public class PrepareMailRunnableTest
         message2.setSubject("subject2");
         message2.setFrom(InternetAddress.parse("john2@doe.com")[0]);
 
-        MemoryMailListener listener = this.mocker.getInstance(MailListener.class, "memory");
         String batchId = UUID.randomUUID().toString();
 
-        PrepareMailQueueItem item1 =
-            new PrepareMailQueueItem(Arrays.asList(message1), session, listener, batchId, "wiki1");
-        PrepareMailQueueItem item2 =
-            new PrepareMailQueueItem(Arrays.asList(message2), session, listener, batchId, "wiki2");
+        ExecutionContext context1 = new ExecutionContext();
+        XWikiContext xContext1 = new XWikiContext();
+        xContext1.setWikiId("wiki1");
+        context1.setProperty(XWikiContext.EXECUTIONCONTEXT_KEY, xContext1);
 
-        MailQueueManager mailQueueManager = this.mocker.getInstance(
-            new DefaultParameterizedType(null, MailQueueManager.class, PrepareMailQueueItem.class));
+        ExecutionContext context2 = new ExecutionContext();
+        XWikiContext xContext2 = new XWikiContext();
+        xContext2.setWikiId("wiki2");
+        context2.setProperty(XWikiContext.EXECUTIONCONTEXT_KEY, xContext2);
+
+        MemoryMailListener listener1 = this.mocker.getInstance(MailListener.class, "memory");
+        PrepareMailQueueItem item1 =
+            new PrepareMailQueueItem(Arrays.asList(message1), session, listener1, batchId, context1);
+        MemoryMailListener listener2 = this.mocker.getInstance(MailListener.class, "memory");
+        PrepareMailQueueItem item2 =
+            new PrepareMailQueueItem(Arrays.asList(message2), session, listener2, batchId, context2);
+
+        MailQueueManager mailQueueManager =
+            this.mocker.getInstance(new DefaultParameterizedType(null, MailQueueManager.class,
+                PrepareMailQueueItem.class));
 
         // Make the content store save fail
         MailContentStore contentStore = this.mocker.getInstance(MailContentStore.class, "filesystem");
@@ -113,7 +122,8 @@ public class PrepareMailRunnableTest
 
         // Wait for the mails to have been processed.
         try {
-            mailQueueManager.waitTillProcessed(batchId, 10000L);
+            listener1.getMailStatusResult().waitTillProcessed(10000L);
+            listener2.getMailStatusResult().waitTillProcessed(10000L);
         } finally {
             runnable.stopProcessing();
             thread.interrupt();
@@ -121,13 +131,9 @@ public class PrepareMailRunnableTest
         }
 
         // This is the real test: we verify that there's been an error while sending each email.
-        Iterator<MailStatus> statuses = listener.getMailStatusResult().getByState(MailState.FAILED);
-        int errorCount = 0;
-        while (statuses.hasNext()) {
-            MailStatus status = statuses.next();
-            assertEquals("MailStoreException: error", status.getErrorSummary());
-            errorCount++;
-        }
-        assertEquals(2, errorCount);
+        MailStatus status1 = listener1.getMailStatusResult().getByState(MailState.FAILED).next();
+        assertEquals("MailStoreException: error", status1.getErrorSummary());
+        MailStatus status2 = listener2.getMailStatusResult().getByState(MailState.FAILED).next();
+        assertEquals("MailStoreException: error", status2.getErrorSummary());
     }
 }

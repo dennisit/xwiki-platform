@@ -91,8 +91,8 @@ public class SendMailRunnableTest
         MemoryMailListener listener = this.mocker.getInstance(MailListener.class, "memory");
         String batchId = UUID.randomUUID().toString();
 
-        SendMailQueueItem item1 = new SendMailQueueItem("id1", session, listener, batchId, "wiki1");
-        SendMailQueueItem item2 = new SendMailQueueItem("id2", session, listener, batchId, "wiki2");
+        SendMailQueueItem item1 = new SendMailQueueItem("id1", session, listener, batchId);
+        SendMailQueueItem item2 = new SendMailQueueItem("id2", session, listener, batchId);
 
         MailQueueManager mailQueueManager = this.mocker.getInstance(
             new DefaultParameterizedType(null, MailQueueManager.class, SendMailQueueItem.class));
@@ -113,7 +113,9 @@ public class SendMailRunnableTest
 
         // Wait for the mails to have been processed.
         try {
-            mailQueueManager.waitTillProcessed(batchId, 10000L);
+            while(listener.getMailStatusResult().getProcessedMailCount() != 2) {
+                Thread.sleep(100L);
+            }
         } finally {
             runnable.stopProcessing();
             thread.interrupt();

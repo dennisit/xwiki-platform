@@ -54,7 +54,7 @@ public class GroovyJob extends AbstractJob
      *            retrieved
      * @throws JobExecutionException if the script fails to execute or if the user didn't have programming rights when
      *             the Job was scheduled
-     * @see Job#execute(org.quartz.JobExecutionContext)
+     * @see org.quartz.Job#execute(org.quartz.JobExecutionContext)
      */
     @Override
     protected void executeJob(JobExecutionContext jobContext) throws JobExecutionException
@@ -84,10 +84,10 @@ public class GroovyJob extends AbstractJob
                 shell.evaluate(object.getLargeStringValue("script"));
             } else {
                 throw new JobExecutionException("The user [" + context.getUser() + "] didn't have "
-                    + "programming rights when the job [" + jobContext.getJobDetail().getName() + "] was scheduled.");
+                    + "programming rights when the job [" + jobContext.getJobDetail().getKey() + "] was scheduled.");
             }
         } catch (CompilationFailedException e) {
-            throw new JobExecutionException("Failed to execute script for job [" + jobContext.getJobDetail().getName()
+            throw new JobExecutionException("Failed to execute script for job [" + jobContext.getJobDetail().getKey()
                 + "]", e, true);
         } catch (Exception e) {
             e.printStackTrace();

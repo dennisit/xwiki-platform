@@ -38,11 +38,10 @@ public class SendMailQueueItem extends AbstractMailQueueItem
      * @param session see {@link #getSession()}
      * @param listener see {@link #getListener()}
      * @param batchId see {@link #getBatchId()}
-     * @param wikiId see {@link #getWikiId()}
      */
-    public SendMailQueueItem(String messageId, Session session, MailListener listener, String batchId, String wikiId)
+    public SendMailQueueItem(String messageId, Session session, MailListener listener, String batchId)
     {
-        super(session, listener, batchId, wikiId);
+        super(session, listener, batchId);
         this.messageId = messageId;
     }
 

@@ -26,7 +26,6 @@ import javax.inject.Inject;
 import javax.inject.Named;
 import javax.inject.Singleton;
 import javax.mail.MessagingException;
-import javax.mail.Session;
 import javax.mail.internet.MimeMessage;
 
 import org.xwiki.component.annotation.Component;
@@ -60,17 +59,18 @@ public class UsersAndGroupsMimeMessageFactory extends AbstractIteratorMimeMessag
     private Execution execution;
 
     @Override
-    public Iterator<MimeMessage> createMessage(Session session, Object sourceObject,
-        Map<String, Object> parameters) throws MessagingException
+    public Iterator<MimeMessage> createMessage(Object sourceObject, Map<String, Object> parameters)
+        throws MessagingException
     {
         Map<String, Object> source = getTypedSource(sourceObject, Map.class);
+
+        // We verify that we have both a Factory hint specified but also the source for the Factory.
         validateParameters(parameters, HINT, SOURCE);
 
         // Extract from the passed parameters the MimeMessageFactory to use to create a single mail
         String factoryHint = (String) parameters.get(HINT);
-        Object factorySource = parameters.get(SOURCE);
 
-        MimeMessageFactory factory = getInternalMimeMessageFactory(factoryHint, factorySource);
+        MimeMessageFactory factory = getInternalMimeMessageFactory(factoryHint);
 
         UsersAndGroupsMimeMessageIterator iterator = new UsersAndGroupsMimeMessageIterator(source, factory, parameters,
             this.explicitDocumentReferenceResolver, this.execution);

@@ -22,6 +22,7 @@ package org.xwiki.mail.internal.thread;
 import javax.mail.Session;
 import javax.mail.internet.MimeMessage;
 
+import org.xwiki.context.ExecutionContext;
 import org.xwiki.mail.MailListener;
 
 /**
@@ -35,18 +36,21 @@ public class PrepareMailQueueItem extends AbstractMailQueueItem
 {
     private Iterable<? extends MimeMessage> messages;
 
+    private ExecutionContext executionContext;
+
     /**
      * @param messages see {@link #getMessages()}
      * @param session see {@link #getSession()}
      * @param listener see {@link #getListener()}
      * @param batchId see {@link #getBatchId()}
-     * @param wikiId see {@link #getWikiId()}
+     * @param executionContext see {@link #getContext()}
      */
     public PrepareMailQueueItem(Iterable<? extends MimeMessage> messages, Session session, MailListener listener,
-        String batchId, String wikiId)
+        String batchId, ExecutionContext executionContext)
     {
-        super(session, listener, batchId, wikiId);
+        super(session, listener, batchId);
         this.messages = messages;
+        this.executionContext = executionContext;
     }
 
     /**
@@ -55,5 +59,23 @@ public class PrepareMailQueueItem extends AbstractMailQueueItem
     public Iterable<? extends MimeMessage> getMessages()
     {
         return this.messages;
+    }
+
+    /**
+     * @return the execution context that will be used when preparing and sending the Mime Message
+     * @since 7.1M2
+     */
+    public ExecutionContext getContext()
+    {
+        return this.executionContext;
+    }
+
+    /**
+     * @since 7.1M2
+     */
+    @Override
+    public String toString()
+    {
+        return prepareToString().append("context", this.executionContext.getProperties()).toString();
     }
 }

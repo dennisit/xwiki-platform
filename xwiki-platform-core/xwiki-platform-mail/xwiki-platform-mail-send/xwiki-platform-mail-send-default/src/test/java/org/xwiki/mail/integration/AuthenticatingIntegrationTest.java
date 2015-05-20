@@ -26,6 +26,7 @@ import java.util.Properties;
 
 import javax.inject.Provider;
 import javax.mail.BodyPart;
+import javax.mail.Message.RecipientType;
 import javax.mail.Multipart;
 import javax.mail.Session;
 import javax.mail.internet.InternetAddress;
@@ -39,6 +40,7 @@ import org.junit.Test;
 import org.mockito.Mockito;
 import org.xwiki.component.util.DefaultParameterizedType;
 import org.xwiki.context.Execution;
+import org.xwiki.context.ExecutionContext;
 import org.xwiki.context.ExecutionContextManager;
 import org.xwiki.environment.internal.EnvironmentConfiguration;
 import org.xwiki.environment.internal.StandardEnvironment;
@@ -46,16 +48,17 @@ import org.xwiki.mail.MailSender;
 import org.xwiki.mail.MailSenderConfiguration;
 import org.xwiki.mail.MimeBodyPartFactory;
 import org.xwiki.mail.XWikiAuthenticator;
-import org.xwiki.mail.internal.factory.attachment.AttachmentMimeBodyPartFactory;
-import org.xwiki.mail.internal.FileSystemMailContentStore;
-import org.xwiki.mail.internal.thread.PrepareMailQueueManager;
 import org.xwiki.mail.internal.DefaultMailSender;
+import org.xwiki.mail.internal.FileSystemMailContentStore;
+import org.xwiki.mail.internal.MemoryMailListener;
+import org.xwiki.mail.internal.configuration.DefaultMailSenderConfiguration;
+import org.xwiki.mail.internal.factory.attachment.AttachmentMimeBodyPartFactory;
+import org.xwiki.mail.internal.factory.text.TextMimeBodyPartFactory;
+import org.xwiki.mail.internal.thread.PrepareMailQueueManager;
 import org.xwiki.mail.internal.thread.PrepareMailRunnable;
 import org.xwiki.mail.internal.thread.SendMailQueueManager;
 import org.xwiki.mail.internal.thread.SendMailRunnable;
-import org.xwiki.mail.internal.configuration.DefaultMailSenderConfiguration;
-import org.xwiki.mail.internal.factory.text.TextMimeBodyPartFactory;
-import org.xwiki.mail.internal.MemoryMailListener;
+import org.xwiki.mail.internal.thread.context.Copier;
 import org.xwiki.model.ModelContext;
 import org.xwiki.model.reference.WikiReference;
 import org.xwiki.test.annotation.BeforeComponent;
@@ -77,6 +80,7 @@ import static org.mockito.Mockito.when;
  * @version $Id$
  * @since 6.4M1
  */
+// @formatter:off
 @ComponentList({
     TextMimeBodyPartFactory.class,
     AttachmentMimeBodyPartFactory.class,
@@ -89,6 +93,7 @@ import static org.mockito.Mockito.when;
     SendMailQueueManager.class,
     FileSystemMailContentStore.class
 })
+// @formatter:on
 public class AuthenticatingIntegrationTest
 {
     // Required by GreenMail.
@@ -117,20 +122,23 @@ public class AuthenticatingIntegrationTest
         // Required by GreenMail. When using XWiki with Gmail for example this is not required.
         properties.setProperty("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
 
-        this.configuration = new TestMailSenderConfiguration(
-            this.mail.getSmtps().getPort(), "peter", "password", properties);
+        this.configuration =
+            new TestMailSenderConfiguration(this.mail.getSmtps().getPort(), "peter", "password", properties);
         this.componentManager.registerComponent(MailSenderConfiguration.class, this.configuration);
 
         // Set the current wiki in the Context
         ModelContext modelContext = this.componentManager.registerMockComponent(ModelContext.class);
         when(modelContext.getCurrentEntityReference()).thenReturn(new WikiReference("wiki"));
 
-        Provider<XWikiContext> xwikiContextProvider = this.componentManager.registerMockComponent(
-            XWikiContext.TYPE_PROVIDER);
+        Provider<XWikiContext> xwikiContextProvider =
+            this.componentManager.registerMockComponent(XWikiContext.TYPE_PROVIDER);
         when(xwikiContextProvider.get()).thenReturn(Mockito.mock(XWikiContext.class));
 
         this.componentManager.registerMockComponent(ExecutionContextManager.class);
         this.componentManager.registerMockComponent(Execution.class);
+
+        this.componentManager.registerMockComponent(new DefaultParameterizedType(null, Copier.class,
+            ExecutionContext.class));
 
         EnvironmentConfiguration environmentConfiguration =
             this.componentManager.registerMockComponent(EnvironmentConfiguration.class);
@@ -143,8 +151,9 @@ public class AuthenticatingIntegrationTest
         // Create a user in the SMTP server.
         this.mail.setUser("peter@doe.com", "peter", "password");
 
-        this.defaultBodyPartFactory = this.componentManager.getInstance(
-            new DefaultParameterizedType(null, MimeBodyPartFactory.class, String.class));
+        this.defaultBodyPartFactory =
+            this.componentManager.getInstance(new DefaultParameterizedType(null, MimeBodyPartFactory.class,
+                String.class));
         this.sender = this.componentManager.getInstance(MailSender.class);
     }
 
@@ -159,6 +168,19 @@ public class AuthenticatingIntegrationTest
     @Test
     public void sendTextMail() throws Exception
     {
+        // Set the EC
+        Execution execution = this.componentManager.getInstance(Execution.class);
+        ExecutionContext executionContext = new ExecutionContext();
+        XWikiContext xContext = new XWikiContext();
+        xContext.setWikiId("wiki");
+        executionContext.setProperty(XWikiContext.EXECUTIONCONTEXT_KEY, xContext);
+        when(execution.getContext()).thenReturn(executionContext);
+
+        Copier<ExecutionContext> executionContextCloner =
+            this.componentManager.getInstance(new DefaultParameterizedType(null, Copier.class, ExecutionContext.class));
+        // Just return the same execution context
+        when(executionContextCloner.copy(executionContext)).thenReturn(executionContext);
+
         // Step 1: Create a JavaMail Session
         Properties properties = this.configuration.getAllProperties();
         assertEquals("true", properties.getProperty(DefaultMailSenderConfiguration.JAVAMAIL_SMTP_AUTH));
@@ -167,7 +189,7 @@ public class AuthenticatingIntegrationTest
         // Step 2: Create the Message to send
         MimeMessage message = new MimeMessage(session);
         message.setSubject("subject");
-        message.setRecipient(MimeMessage.RecipientType.TO, new InternetAddress("john@doe.com"));
+        message.setRecipient(RecipientType.TO, new InternetAddress("john@doe.com"));
 
         // Step 3: Add the Message Body
         Multipart multipart = new MimeMultipart("mixed");
